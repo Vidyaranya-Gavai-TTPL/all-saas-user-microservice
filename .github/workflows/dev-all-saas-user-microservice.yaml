@@ -2,7 +2,7 @@ name: Deployment on the All-saas-user-microservice Dev
 on:
   push:
     branches:
-      - all-saas-0.1  
+      - all-saas-0.2-dev  
 
 jobs:
   ALL-SAAS-USER-MICROSERVICE-DEPLOYMENT:
