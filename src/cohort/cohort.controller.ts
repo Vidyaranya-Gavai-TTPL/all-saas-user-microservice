@@ -184,7 +184,7 @@ export class CohortController {
     //   throw new BadRequestException(API_RESPONSES.ACADEMICYEARID_VALIDATION);
     // }
     return await this.cohortAdapter.buildCohortAdapter().searchCohort(
-      tenantId,
+      // tenantId,
       // academicYearId,
       request,
       cohortSearchDto,

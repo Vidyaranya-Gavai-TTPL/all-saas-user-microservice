@@ -29,6 +29,7 @@ import { PostgresCohortMembersService } from "./cohortMembers-adapter";
 import { UserRoleMapping } from "src/rbac/assign-role/entities/assign-role.entity"
 import { Role } from "src/rbac/role/entities/role.entity";
 import { PostgresRoleService } from './rbac/role-adapter';
+import {PostgresUserService } from "./user-adapter";
 
 @Injectable()
 export class PostgresCohortService {
@@ -49,6 +50,7 @@ export class PostgresCohortService {
     private RoleRepository: Repository<Role>,
     private fieldsService: PostgresFieldsService,
     private postgresRoleService: PostgresRoleService,
+    private postgresUserService: PostgresUserService,
     private readonly cohortAcademicYearService: CohortAcademicYearService,
     private readonly postgresAcademicYearService: PostgresAcademicYearService,
     private readonly postgresCohortMembersService : PostgresCohortMembersService
@@ -544,52 +546,25 @@ export class PostgresCohortService {
 
 
   public async searchCohort(
-    tenantId: string,
-    // academicYearId,
     request: any,
     cohortSearchDto: CohortSearchDto,
-    response
+    response: any
   ) {
     const apiId = APIID.COHORT_LIST;
     const authToken = request.headers["authorization"];
     const token = authToken.split(" ")[1];
-    let decoded;
-    decoded = jwt_decode(token);
+    const decoded = jwt_decode(token);
     const userId = decoded["sub"];
-    const isSuperAdmin = await this.postgresRoleService.isSuperAdmin(userId);
-    if(!isSuperAdmin) {
-      let userRoles = await this.UserRoleMappingRepository.find({
-        where: {
-          userId: userId,
-          tenantId: tenantId
-        }
-      })
-      let roleName = await this.RoleRepository.find({
-        where: {
-          roleId: userRoles[0].roleId
-        }
-      })
-      if(roleName[0].code === 'cohort_admin') {
-        cohortSearchDto.filters.userId = userId;
-
-      }
-      if(roleName[0].code === 'tenant_admin') {
-        cohortSearchDto.filters.tenantId = tenantId;
-
-      }
-    }
+  
     try {
-      let { limit, sort, offset, filters } = cohortSearchDto;
-      // let cohortsByAcademicYear :CohortAcademicYear[];
-
+      let { limit, offset, filters } = cohortSearchDto;
       offset = offset || 0;
       limit = limit || 200;
-
-      const emptyValueKeys = {};
-      let emptyKeysString = "";
-
+  
       const MAX_LIMIT = 200;
-
+      let results = [];
+      let count = 0;
+  
       // Validate the limit parameter
       if (limit > MAX_LIMIT) {
         return APIResponse.error(
@@ -600,31 +575,138 @@ export class PostgresCohortService {
           HttpStatus.BAD_REQUEST
         );
       }
-
-      //Get all cohorts fields
-      const cohortAllKeys = this.cohortRepository.metadata.columns.map(
-        (column) => column.propertyName,
+  
+      const isSuperAdmin = await this.postgresRoleService.isSuperAdmin(userId);
+  
+      if (isSuperAdmin) {
+        const cohortData = await this.fetchCohortData(response, cohortSearchDto);
+        cohortData.forEach((cohort) => {
+          cohort.role = "super_admin";
+          results.push(cohort);
+        });
+      } else {
+        if (filters.tenantId && filters.tenantId !== '') {
+          // Check tenant-user mapping
+          const userTenantMapping = await this.UserTenantMappingRepository.find({
+            where: { userId, tenantId: filters.tenantId },
+          });
+  
+          if (userTenantMapping.length === 0) {
+            return APIResponse.error(
+              response,
+              apiId,
+              `User is not mapped for this tenant`,
+              "Invalid combination of userId and tenantId",
+              HttpStatus.BAD_REQUEST
+            );
+          }
+  
+          // Determine the user role
+          const userRoles = await this.postgresUserService.findUserRoles(userId, filters.tenantId);
+          let cohortData = [];
+  
+          if (userRoles.code === "cohort_admin") {
+            cohortSearchDto.filters.userId = userId;
+            cohortData = await this.fetchCohortData(response, cohortSearchDto);
+          }
+  
+          if (userRoles.code === "tenant_admin") {
+            cohortData = await this.fetchCohortData(response, cohortSearchDto);
+          }
+  
+          cohortData.forEach((cohort) => {
+            cohort.role = userRoles.code;
+            results.push(cohort);
+          });
+        } else {
+          // Fetch all tenants for the user
+          const userTenants = await this.UserTenantMappingRepository.find({
+            where: { userId },
+          });
+  
+          for (const userTenant of userTenants) {
+            const tenantId = userTenant.tenantId;
+            const userRoles = await this.postgresUserService.findUserRoles(userId, tenantId);
+            let cohortData = [];
+  
+            if (userRoles.code === "cohort_admin") {
+              cohortSearchDto.filters.userId = userId;
+              cohortSearchDto.filters.tenantId = tenantId;
+              cohortData = await this.fetchCohortData(response, cohortSearchDto);
+            }
+            if (userRoles.code === "tenant_admin") {
+              cohortSearchDto.filters.userId = null;
+              cohortSearchDto.filters.tenantId = tenantId;
+              cohortData = await this.fetchCohortData(response, cohortSearchDto);
+            }
+            cohortData.forEach((cohort) => {
+              cohort.role = userRoles.code;
+              results.push(cohort);
+            });
+            
+          }
+        }
+      }
+  
+      // Apply offset and limit for pagination
+      const paginatedResults = results.slice(offset, offset + limit);
+      count = paginatedResults.length;
+  
+      if (paginatedResults.length > 0) {
+        return APIResponse.success(
+          response,
+          apiId,
+          { count, results: paginatedResults },
+          HttpStatus.OK,
+          "Cohort details fetched successfully"
+        );
+      } else {
+        return APIResponse.error(
+          response,
+          apiId,
+          "No data found.",
+          "No data found.",
+          HttpStatus.NOT_FOUND
+        );
+      }
+    } catch (error) {
+      const errorMessage = error.message || "Internal server error";
+      return APIResponse.error(
+        response,
+        apiId,
+        "Internal Server Error",
+        errorMessage,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
+    }
+  }
+  
 
-      //Get custom fields
-      const getCustomFields = await this.fieldsRepository.find({
-        where: [
-          { context: In(['COHORT', null, 'null', 'NULL']), contextType: null },
-          { context: IsNull(), contextType: IsNull() }
-        ],
-        select: ["fieldId", "name", "label", "contextType"]
-      });
+  public async fetchCohortData(response,cohortSearchDto) {
+    const apiId = APIID.COHORT_LIST;
+    let {  filters } = cohortSearchDto; //limit, sort, offset,
+    const emptyValueKeys = {};
+    let emptyKeysString = "";
+    const cohortAllKeys = this.cohortRepository.metadata.columns.map(
+      (column) => column.propertyName,
+    );
 
-      // Extract custom field names
-      const customFieldsKeys = getCustomFields.map(customFields => customFields.name);
+    const getCustomFields = await this.fieldsRepository.find({
+      where: [
+        { context: In(['COHORT', null, 'null', 'NULL']), contextType: null },
+        { context: IsNull(), contextType: IsNull() }
+      ],
+      select: ["fieldId", "name", "label", "contextType"]
+    });
+    // Extract custom field names
+    const customFieldsKeys = getCustomFields.map(customFields => customFields.name);
 
-      // Combine the arrays
-      const allowedKeys = ['userId', ...cohortAllKeys, ...customFieldsKeys];
+    // Combine the arrays
+    const allowedKeys = ['userId', ...cohortAllKeys, ...customFieldsKeys];
 
-      const whereClause = {};
-      const searchCustomFields = {};
-
-      // if(academicYearId) {
+    const whereClause = {};
+    const searchCustomFields = {};
+    // if(academicYearId) {
       //   // check if the tenantId and academic year exist together
       //   cohortsByAcademicYear = await this.cohortAcademicYearService.getCohortsAcademicYear(academicYearId, tenantId);
        
@@ -673,12 +755,12 @@ export class PostgresCohortService {
         cohortDetails: [],
       };
 
-      let order = {};
-      if (sort?.length) {
-        order[sort[0]] = ['ASC', 'DESC'].includes(sort[1].toUpperCase()) ? sort[1].toUpperCase() : 'ASC'
-      } else {
-        order['name'] = 'ASC'
-      }
+      // let order = {};
+      // if (sort?.length) {
+      //   order[sort[0]] = ['ASC', 'DESC'].includes(sort[1].toUpperCase()) ? sort[1].toUpperCase() : 'ASC'
+      // } else {
+      //   order['name'] = 'ASC'
+      // }
 
       let count = 0;
 
@@ -699,7 +781,7 @@ export class PostgresCohortService {
 
         let userTenantMapExist = await this.UserTenantMappingRepository.find({
           where: {
-            tenantId: tenantId,
+            tenantId: filters.tenantId, //tenantId
             userId: filters.userId,
           },
         });
@@ -718,16 +800,15 @@ export class PostgresCohortService {
             // where: whereClause,
             where :{userId: filters.userId,}
           });
-        const userExistCohortGroup = data.slice(offset, offset + limit);
+        // const userExistCohortGroup = data.slice(offset, offset + limit);
         count = totalCount;
 
-        let cohortIds = userExistCohortGroup.map(cohortId => cohortId.cohortId);
+        let cohortIds = data.map(cohortId => cohortId.cohortId);
         let cohortAllData = await this.cohortRepository.find({
           where: {
             cohortId: In(cohortIds),
-            tenantId : tenantId
+            tenantId : filters.tenantId
           },
-          order,
         });
 
         for (let data of cohortAllData) {
@@ -767,10 +848,9 @@ export class PostgresCohortService {
 
         const [data, totalCount] = await this.cohortRepository.findAndCount({
           where: whereClause,
-          order,
         });
 
-        const cohortData = data.slice(offset, offset + limit);
+        const cohortData = data
         count = totalCount;
 
         for (let data of cohortData) {
@@ -782,16 +862,14 @@ export class PostgresCohortService {
           results.cohortDetails.push(data);
         }
       }
+      return results.cohortDetails;
 
-      if (results.cohortDetails.length > 0) {
-        return APIResponse.success(response, apiId, { count, results }, HttpStatus.OK, "Cohort details fetched successfully");
-      } else {
-        return APIResponse.error(response, apiId, `No data found.`, "No data found.", HttpStatus.NOT_FOUND);
-      }
-    } catch (error) {
-      const errorMessage = error.message || "Internal server error";
-      return APIResponse.error(response, apiId, "Internal Server Error", errorMessage, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+      // if (results.cohortDetails.length > 0) {
+      //   return APIResponse.success(response, apiId, { count, results }, HttpStatus.OK, "Cohort details fetched successfully");
+      // } else {
+      //   return APIResponse.error(response, apiId, `No data found.`, "No data found.", HttpStatus.NOT_FOUND);
+      // }
+
   }
 
   public async updateCohortStatus(cohortId: string, request: any, response) {

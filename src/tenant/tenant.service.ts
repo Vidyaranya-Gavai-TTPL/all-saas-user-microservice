@@ -15,6 +15,7 @@ import { CreateRolesDto } from 'src/rbac/role/dto/role.dto';
 import { PostgresAssignPrivilegeService } from 'src/adapters/postgres/rbac/privilegerole.adapter';
 import { CreatePrivilegeRoleDto } from 'src/rbac/assign-privilege/dto/create-assign-privilege.dto';
 import { UserRoleMapping } from 'src/rbac/assign-role/entities/assign-role.entity';
+import { PostgresUserService } from 'src/adapters/postgres/user-adapter';
 @Injectable()
 export class TenantService {
     constructor(
@@ -28,6 +29,7 @@ export class TenantService {
         private UserRoleMappingRepository : Repository<UserRoleMapping>,
         private roleService:PostgresRoleService,
         private rolePrivilegeService : PostgresAssignPrivilegeService,
+        private userService: PostgresUserService
     ) { }
 
     public async getTenants(request, response) {
@@ -85,17 +87,31 @@ export class TenantService {
             }
     
             // Step 3: Attach roles to each tenant
-            for (let tenantData of result) {
-                const tenantRoles = await this.tenantRepository.query(
-                    `SELECT * FROM public."Roles" WHERE "tenantId" = $1`,
-                    [tenantData.tenantId]
-                );
+            // for (let tenantData of result) {
+            //     const tenantRoles = await this.tenantRepository.query(
+            //         `SELECT * FROM public."Roles" WHERE "tenantId" = $1`,
+            //         [tenantData.tenantId]
+            //     );
     
-                tenantData['role'] = tenantRoles.map((roleData) => ({
-                    roleId: roleData.roleId,
-                    name: roleData.name,
-                    code: roleData.code
-                }));
+            //     tenantData['role'] = tenantRoles.map((roleData) => ({
+            //         roleId: roleData.roleId,
+            //         name: roleData.name,
+            //         code: roleData.code
+            //     }));
+            // }
+
+            //step 4 : Attach user role mapping to each tenant
+            for (let tenantData of result) {
+                if(isSuperAdmin) {
+                    tenantData['userRoleTenantMapping'] = {
+                        "title": "super admin",
+                        "code": "super_admin"
+                    };
+                }
+                else {
+                    const userRoleTenant = await this.userService.findUserRoles(userId,tenantData.tenantId);
+                    tenantData['userRoleTenantMapping'] = userRoleTenant;
+                }
             }
     
             return APIResponse.success(
