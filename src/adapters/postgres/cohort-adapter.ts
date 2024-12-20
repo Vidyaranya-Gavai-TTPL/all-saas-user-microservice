@@ -809,7 +809,6 @@ export class PostgresCohortService {
             cohortId: In(cohortIds),
             tenantId : filters.tenantId
           },
-          // order,
         });
 
         for (let data of cohortAllData) {
@@ -849,10 +848,9 @@ export class PostgresCohortService {
 
         const [data, totalCount] = await this.cohortRepository.findAndCount({
           where: whereClause,
-          // order,
         });
 
-        const cohortData = data    //.slice(offset, offset + limit);
+        const cohortData = data
         count = totalCount;
 
         for (let data of cohortData) {
