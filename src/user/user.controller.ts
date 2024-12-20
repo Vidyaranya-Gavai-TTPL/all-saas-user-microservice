@@ -44,7 +44,7 @@ import { APIID } from "src/common/utils/api-id.config";
 import { ForgotPasswordDto, ResetUserPasswordDto, SendPasswordResetLinkDto } from "./dto/passwordReset.dto";
 export interface UserData {
   context: string;
-  tenantId: string;
+  // tenantId: string;
   userId: string;
   fieldValue: boolean;
 }
@@ -65,7 +65,7 @@ export class UserController {
   @ApiInternalServerErrorResponse({ description: "Internal Server Error" })
   @ApiBadRequestResponse({ description: "Bad Request" })
   @SerializeOptions({ strategy: "excludeAll", })
-  @ApiHeader({ name: "tenantid", })
+  // @ApiHeader({ name: "tenantid", })
   @ApiQuery({ name: 'fieldvalue', description: 'Send True to Fetch Custom Field of User', required: false })
   public async getUser(
     @Headers() headers,
@@ -74,15 +74,15 @@ export class UserController {
     @Param('userId', ParseUUIDPipe) userId: string,
     @Query("fieldvalue") fieldvalue: string | null = null
   ) {
-    const tenantId = headers["tenantid"];
-    if (!tenantId) {
-      return response.status(400).json({ "statusCode": 400, error: "Please provide a tenantId." });
-    }
+    // const tenantId = headers["tenantid"];
+    // if (!tenantId) {
+    //   return response.status(400).json({ "statusCode": 400, error: "Please provide a tenantId." });
+    // }
     const fieldValueBoolean = fieldvalue === 'true';
     // Context and ContextType can be taken from .env later
     let userData: UserData = {
       context: "USERS",
-      tenantId: tenantId,
+      // tenantId: tenantId,
       userId: userId,
       fieldValue: fieldValueBoolean
     }

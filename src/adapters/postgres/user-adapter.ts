@@ -415,26 +415,29 @@ export class PostgresUserService implements IServicelocator {
       }
 
       const result = {
-        userData: {}
+        userData: {},
       };
 
-      let [userDetails, userRole] = await Promise.all([
+      let [userDetails] = await Promise.all([ //, userRole
         this.findUserDetails(userData?.userId),
-        userData && userData?.tenantId ? this.findUserRoles(userData?.userId, userData?.tenantId) : Promise.resolve(null)
+
+        // userData && userData?.tenantId ? this.findUserRoles(userData?.userId, userData?.tenantId) : Promise.resolve(null)
       ]);
 
-      let roleInUpper;
-      if (userRole) {
-        roleInUpper = userRole ? userRole.title.toUpperCase() : null;
-        userDetails['role'] = userRole.title;
-      }
+      let roleInUpper =null;
+      // if (userRole) {
+      //   roleInUpper = userRole ? userRole.title.toUpperCase() : null;
+      //   userDetails['role'] = userRole.title;
+      // }
+      const isSuperAdmin = await this.postgresRoleService.isSuperAdmin(userData?.userId);
+      userDetails['isSuperAdmin'] = isSuperAdmin;
 
 
       if (!userDetails) {
         return APIResponse.error(response, apiId, "Not Found", `User Not Found`, HttpStatus.NOT_FOUND);
       }
       if (!userData.fieldValue) {
-        return await APIResponse.success(response, apiId, { userData: userDetails },
+        return await APIResponse.success(response, apiId, { userData: {userDetails} },
           HttpStatus.OK, 'User details Fetched Successfully.')
       }
 
