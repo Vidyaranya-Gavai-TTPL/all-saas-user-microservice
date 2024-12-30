@@ -351,6 +351,7 @@ async searchUser(
           tenantCohortRoleMapping.cohortId = await this.getCohortIdsForTenant(userId, tenantId);
         } else if (userRoles.code === "tenant_admin") {
           tenantCohortRoleMapping.cohortId = [];
+          tenantCohortRoleMapping.tenantId= tenantId;
         }
 
         await this.processUserDetails(userSearchDto, results);
