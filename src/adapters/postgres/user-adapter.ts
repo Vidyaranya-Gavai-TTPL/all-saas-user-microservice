@@ -489,13 +489,13 @@ async searchUser(
     //Get user core fields data
     const query = `SELECT U."userId", U."username", U."email", U."name", R."name" AS role, 
     U."mobile", U."createdBy", U."updatedBy", U."createdAt", U."updatedAt", 
-    U.status 
+    U.status,UTM."tenantId"
     FROM public."Users" U
     JOIN public."UserTenantMapping" UTM ON U."userId" = UTM."userId"
     LEFT JOIN public."CohortMembers" CM ON CM."userId" = U."userId"
     LEFT JOIN public."UserRolesMapping" UR ON UR."userId" = U."userId"
     LEFT JOIN public."Roles" R ON R."roleId" = UR."roleId" 
-    ${whereCondition} GROUP BY U."userId", R."name" `; //491 - , COUNT(*) OVER() AS total_count
+    ${whereCondition} GROUP BY U."userId", R."name",UTM."tenantId" `; //491 - , COUNT(*) OVER() AS total_count
     // ${orderingCondition} ${offset} ${limit}
     let userDetails = await this.usersRepository.query(query);
 
