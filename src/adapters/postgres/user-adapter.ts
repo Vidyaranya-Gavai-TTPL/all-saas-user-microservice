@@ -357,8 +357,8 @@ async searchUser(
         await this.processUserDetails(userSearchDto, results);
       }
     }
-    results.getUserDetails = results.getUserDetails.slice(offset, offset + limit);
     results.total_count = results.getUserDetails.length;
+    results.getUserDetails = results.getUserDetails.slice(offset, offset + limit);
 
 
     return await APIResponse.success(response, apiId, results, HttpStatus.OK, 'User List fetched.');
