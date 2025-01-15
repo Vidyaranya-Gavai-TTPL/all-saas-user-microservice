@@ -649,9 +649,8 @@ export class PostgresCohortService {
       }
   
       // Apply offset and limit for pagination
+      count = results.length;
       const paginatedResults = results.slice(offset, offset + limit);
-      count = paginatedResults.length;
-  
       if (paginatedResults.length > 0) {
         return APIResponse.success(
           response,
