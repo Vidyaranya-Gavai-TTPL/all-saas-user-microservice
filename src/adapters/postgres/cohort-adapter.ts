@@ -803,11 +803,17 @@ export class PostgresCohortService {
         count = totalCount;
 
         let cohortIds = data.map(cohortId => cohortId.cohortId);
+        let whereClauseCondition: any = {
+          cohortId: In(cohortIds),
+          tenantId: filters.tenantId,
+        };
+        
+        if (filters.status && filters.status.length > 0) {
+          whereClauseCondition.status = In(filters.status);
+        }
+        
         let cohortAllData = await this.cohortRepository.find({
-          where: {
-            cohortId: In(cohortIds),
-            tenantId : filters.tenantId
-          },
+          where: whereClauseCondition,
         });
 
         for (let data of cohortAllData) {
