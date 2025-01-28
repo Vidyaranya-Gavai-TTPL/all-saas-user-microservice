@@ -49,7 +49,7 @@ export class AuthController {
     return this.authService.login(authDto,response);
   }
 
-  @Post('/signin')
+  @Post('/validateAndRegister')
   @UseGuards(JwtAuthGuard)
   @ApiBasicAuth("access-token")
   @ApiOperation({ summary: 'Signup or Signin with Google' })
