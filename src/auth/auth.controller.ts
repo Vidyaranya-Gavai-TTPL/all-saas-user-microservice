@@ -52,14 +52,14 @@ export class AuthController {
   @Post('/validateAndRegister')
   @UseGuards(JwtAuthGuard)
   @ApiBasicAuth("access-token")
-  @ApiOperation({ summary: 'Signup or Signin with Google' })
-  @ApiResponse({ status: 200, description: 'User signed in successfully' })
-  @ApiResponse({ status: 201, description: 'User signed up successfully' })
-  async signUpAndSignIn(
+  @ApiOperation({ summary: 'validate And Register with Google' })
+  @ApiResponse({ status: 200, description: 'User Validated successfully' })
+  @ApiResponse({ status: 201, description: 'User Registered successfully' })
+  async validateAndRegister(
     @Req() request: Request,
     @Res() response: Response
   ) {
-    return this.authService.signUpAndSignIn(request, response);
+    return this.authService.validateAndRegister(request, response);
   }
   
   @UseFilters(new AllExceptionsFilter(APIID.USER_AUTH))

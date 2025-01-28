@@ -30,7 +30,7 @@ export class AuthService {
     private userRepository: Repository<User>,
   ) { }
 
-  async signUpAndSignIn(request :Request,response: Response) {
+  async validateAndRegister(request :Request,response: Response) {
     const decoded :any = jwt_decode(request.headers.authorization);
     const userCreateDto = new UserCreateDto({
       userId: decoded.sub,
@@ -52,9 +52,9 @@ export class AuthService {
         return APIResponse.success(
           response,
           APIID.GOOGLE_SIGNIN,
-          'User signed in successfully',
+          'User validated successfully',
           HttpStatus.OK,
-          'User signed in successfully'
+          'User validated successfully'
         );
       }
       else {
@@ -64,7 +64,7 @@ export class AuthService {
           APIID.GOOGLE_SIGNUP,
           createUserDB,
           HttpStatus.CREATED,
-          'User Signed Up successfully'
+          'User Registered successfully'
         );
       }
       
