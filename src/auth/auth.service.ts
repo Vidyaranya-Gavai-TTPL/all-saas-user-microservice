@@ -5,7 +5,12 @@ import jwt_decode from "jwt-decode";
 import APIResponse from "src/common/responses/response";
 import { KeycloakService } from "src/common/utils/keycloak.service";
 import { APIID } from "src/common/utils/api-id.config";
-import { Response } from "express";
+import { User } from "src/user/entities/user-entity";
+import { Request, Response } from "express";
+import { UserCreateDto } from "src/user/dto/user-create.dto";
+import { PostgresUserService } from "src/adapters/postgres/user-adapter";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
 
 type LoginResponse = {
@@ -19,9 +24,60 @@ export class AuthService {
 
   constructor(
     private readonly useradapter: UserAdapter,
-    private readonly keycloakService: KeycloakService
-  ) {}
+    private readonly keycloakService: KeycloakService,
+    private userService : PostgresUserService,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+  ) { }
 
+  async signUpAndSignIn(request :Request,response: Response) {
+    const decoded :any = jwt_decode(request.headers.authorization);
+    const userCreateDto = new UserCreateDto({
+      userId: decoded.sub,
+      username: decoded.email,
+      email: decoded.email,
+      name: decoded.name,
+      tenantCohortRoleMapping: [],
+      customFields: [],
+      createdBy: decoded.sub,
+      updatedBy: decoded.sub,
+    });
+    try {
+      const checkUserinDb = await this.userRepository.find({
+        where: [
+          { username: decoded.email,userId: decoded.sub  },
+        ],
+      })
+      if(checkUserinDb.length>0) {
+        return APIResponse.success(
+          response,
+          APIID.GOOGLE_SIGNIN,
+          'User signed in successfully',
+          HttpStatus.OK,
+          'User signed in successfully'
+        );
+      }
+      else {
+        const createUserDB = await this.userService.createUserInDatabase(request, userCreateDto, response);
+        return APIResponse.success(
+          response,
+          APIID.GOOGLE_SIGNUP,
+          createUserDB,
+          HttpStatus.CREATED,
+          'User Signed Up successfully'
+        );
+      }
+      
+    } catch (error) {
+      return APIResponse.error(
+        response,
+        APIID.GOOGLE_SIGNIN,
+        'INTERNAL_SERVER_ERROR',
+        error.message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
   async login(authDto,response: Response) {
     const apiId = APIID.LOGIN;
     const { username, password } = authDto;

@@ -5,6 +5,8 @@ import {
   ApiHeader,
   ApiBasicAuth,
   ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
 } from "@nestjs/swagger";
 import {
   Controller,
@@ -30,7 +32,7 @@ import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "src/common/guards/keycloak.guard";
 import { APIID } from "src/common/utils/api-id.config";
 import { AllExceptionsFilter } from "src/common/filters/exception.filter";
-import { Response } from "express";
+import { Request, Response } from "express";
 
 @ApiTags("Auth")
 @Controller("auth")
@@ -47,6 +49,19 @@ export class AuthController {
     return this.authService.login(authDto,response);
   }
 
+  @Post('/signin')
+  @UseGuards(JwtAuthGuard)
+  @ApiBasicAuth("access-token")
+  @ApiOperation({ summary: 'Signup or Signin with Google' })
+  @ApiResponse({ status: 200, description: 'User signed in successfully' })
+  @ApiResponse({ status: 201, description: 'User signed up successfully' })
+  async signUpAndSignIn(
+    @Req() request: Request,
+    @Res() response: Response
+  ) {
+    return this.authService.signUpAndSignIn(request, response);
+  }
+  
   @UseFilters(new AllExceptionsFilter(APIID.USER_AUTH))
   @Get("/")
   @UseGuards(JwtAuthGuard)

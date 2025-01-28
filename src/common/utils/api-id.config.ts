@@ -37,6 +37,8 @@ export const APIID = {
     FIELDVALUES_CREATE: "api.fieldValues.create",
     FIELDVALUES_SEARCH: "api.fieldValues.search",
     FIELD_OPTIONS_DELETE: "api.fields.options.delete",
+    GOOGLE_SIGNIN :"api.google.signin",
+    GOOGLE_SIGNUP :"api.google.signup",
     LOGIN: "api.login",
     LOGOUT: "api.logout",
     REFRESH: "api.refresh",
