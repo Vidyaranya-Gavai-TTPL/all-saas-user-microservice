@@ -147,6 +147,9 @@ export class TenantService {
 
     public async createTenants(request, tenantCreateDto, response) {
         let apiId = APIID.TENANT_CREATE;
+        const decoded = jwt_decode(request.headers["authorization"]);
+        const userId = decoded["sub"];
+        tenantCreateDto.createdBy = userId;
         // tenantCreateDto.status=tenantCreateDto.status || 'active'
         try {
             let checkExitTenants = await this.tenantRepository.find({
@@ -166,8 +169,23 @@ export class TenantService {
             }
             let result = await this.tenantRepository.save(tenantCreateDto);
             if(result) {
-                await this.createRolesAndAssignPrivileges(result.tenantId)
-
+              let rolesDataofTenant = await this.createRolesAndAssignPrivileges(
+                result.tenantId
+              );
+                const tenantAdminRole = rolesDataofTenant.roles.find(
+                  (role) => role.code === "tenant_admin"
+                );
+                let tenantRoleMappingData = {
+                  userId: userId,
+                  tenantRoleMapping: {
+                    tenantId: result.tenantId,
+                    roleId: tenantAdminRole.roleId, //get role id of tenant_admin from roles list
+                  },
+                };
+                await this.userService.assignUserToTenant(
+                  tenantRoleMappingData,
+                  request
+                );
             }
             return APIResponse.success(
                 response,
@@ -339,6 +357,7 @@ export class TenantService {
                     const createPrivilegeRoleDto = new CreatePrivilegeRoleDto(privilegeMappingRequest)    
                     // Call to map privileges to the role
                     await this.rolePrivilegeService.createPrivilegeRole(request as any, createPrivilegeRoleDto, response as any);
+                    return rolesResult;
                 } else {
                     console.warn(`No privileges found for role "${roleCode}".`);
                 }
