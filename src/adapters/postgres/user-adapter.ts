@@ -188,195 +188,195 @@ export class PostgresUserService implements IServicelocator {
     }
   }
 
-// Utility function to check user-tenant mapping
-async validateUserandTenantMapping(userId: string, tenantId: string) {
-  let userTenantMapping = await this.userTenantMappingRepository.find({
-    where: { userId, tenantId },
-  });
-  if (userTenantMapping.length === 0) {
-    throw new Error('User is not mapped to the specified tenantId');
+  // Utility function to check user-tenant mapping
+  async validateUserandTenantMapping(userId: string, tenantId: string) {
+    let userTenantMapping = await this.userTenantMappingRepository.find({
+      where: { userId, tenantId },
+    });
+    if (userTenantMapping.length === 0) {
+      throw new Error('User is not mapped to the specified tenantId');
+    }
   }
-}
 
-// Utility function to get user roles
-async getUserRoles(userId: string, tenantId: string) {
-  return await this.findUserRoles(userId, tenantId);
-}
-
-// Utility function to validate cohort-tenant mapping
-async validateCohortTenantMapping(cohortId: string, tenantId: string) {
-  let cohortValidation = await this.cohortRepository.findOne({
-    where: { cohortId, tenantId },
-  });
-  if (!cohortValidation) {
-    throw new Error('Invalid mapping between tenantId and cohortId');
+  // Utility function to get user roles
+  async getUserRoles(userId: string, tenantId: string) {
+    return await this.findUserRoles(userId, tenantId);
   }
-}
 
-// Utility function to validate cohort-admin mapping
-async validateCohortAdminMapping(userId: string, cohortIds: string[]) {
-  let cohortMemberMapping = await this.cohortMemberRepository.find({
-    where: { userId, cohortId: In(cohortIds) },
-  });
-  if (cohortMemberMapping.length === 0) {
-    throw new Error('User is not mapped to the specified cohortId');
+  // Utility function to validate cohort-tenant mapping
+  async validateCohortTenantMapping(cohortId: string, tenantId: string) {
+    let cohortValidation = await this.cohortRepository.findOne({
+      where: { cohortId, tenantId },
+    });
+    if (!cohortValidation) {
+      throw new Error('Invalid mapping between tenantId and cohortId');
+    }
   }
-}
 
-// Utility function to fetch cohort IDs for cohort_admin
-async getCohortIdsForTenant(userId: string, tenantId: string) {
-  let cohortIds = await this.cohortRepository.find({
-    where: { tenantId },
-    select: ['cohortId'],
-  });
-
-  let cohortMemberIds = await this.cohortMemberRepository.find({
-    where: { userId, cohortId: In(cohortIds.map(id => id.cohortId)) },
-    select: ['cohortId'],
-  });
-
-  return cohortMemberIds.map(id => id.cohortId);
-}
-
-// Utility function to process user details
-async processUserDetails(userSearchDto: UserSearchDto, results) {
-  let userData = await this.findAllUserDetails(userSearchDto);
-  if (userData && userData.getUserDetails.length > 0) {
-    userData.getUserDetails.forEach((user) => results.getUserDetails.push(user));
+  // Utility function to validate cohort-admin mapping
+  async validateCohortAdminMapping(userId: string, cohortIds: string[]) {
+    let cohortMemberMapping = await this.cohortMemberRepository.find({
+      where: { userId, cohortId: In(cohortIds) },
+    });
+    if (cohortMemberMapping.length === 0) {
+      throw new Error('User is not mapped to the specified cohortId');
+    }
   }
-}
 
-async searchUser(
-  tenantId: string,
-  request: any,
-  response: any,
-  userSearchDto: UserSearchDto
-) {
-  const apiId = APIID.USER_LIST;
-  const authToken = request.headers["authorization"];
-  const token = authToken.split(" ")[1];
-  const decoded = jwt_decode(token);
-  const userId = decoded["sub"];
-  const isSuperAdmin = await this.postgresRoleService.isSuperAdmin(userId);
+  // Utility function to fetch cohort IDs for cohort_admin
+  async getCohortIdsForTenant(userId: string, tenantId: string) {
+    let cohortIds = await this.cohortRepository.find({
+      where: { tenantId },
+      select: ['cohortId'],
+    });
 
-  let { limit, offset, filters, sort, tenantCohortRoleMapping } = userSearchDto;
-  offset = offset || 0;
-  limit = limit || 200;
-  let results = {
-    total_count:0,
-    getUserDetails: []
-  };
+    let cohortMemberIds = await this.cohortMemberRepository.find({
+      where: { userId, cohortId: In(cohortIds.map(id => id.cohortId)) },
+      select: ['cohortId'],
+    });
 
-  try {
-    if (isSuperAdmin) {
-      await this.processUserDetails(userSearchDto, results);
-    } else if (
-      tenantCohortRoleMapping.tenantId &&
-      (!tenantCohortRoleMapping.cohortId || tenantCohortRoleMapping.cohortId.length === 0)
-    ) {
-      // Case 1: Only tenantId is provided
-      await this.validateUserandTenantMapping(userId, tenantCohortRoleMapping.tenantId);
-      const userRoles = await this.getUserRoles(userId, tenantCohortRoleMapping.tenantId);
+    return cohortMemberIds.map(id => id.cohortId);
+  }
 
-      if (userRoles.code === "tenant_admin") {
-        tenantCohortRoleMapping.cohortId = [];
-      } else if (userRoles.code === "cohort_admin") {
-        tenantCohortRoleMapping.cohortId = await this.getCohortIdsForTenant(
-          userId,
-          tenantCohortRoleMapping.tenantId
-        );
-      } else {
-        throw new Error('User does not have sufficient permissions for this tenant');
-      }
+  // Utility function to process user details
+  async processUserDetails(userSearchDto: UserSearchDto, results) {
+    let userData = await this.findAllUserDetails(userSearchDto);
+    if (userData && userData.getUserDetails.length > 0) {
+      userData.getUserDetails.forEach((user) => results.getUserDetails.push(user));
+    }
+  }
 
-      await this.processUserDetails(userSearchDto, results);
-    } else if (
-      (!tenantCohortRoleMapping.tenantId || tenantCohortRoleMapping.tenantId === "") &&
-      tenantCohortRoleMapping.cohortId &&
-      tenantCohortRoleMapping.cohortId.length > 0
-    ) {
-      // Case 2: Only cohortId is provided
-      let cohortData = await this.cohortRepository.findOne({
-        where: { cohortId: tenantCohortRoleMapping.cohortId[0] },
-        select: ["tenantId"],
-      });
+  async searchUser(
+    tenantId: string,
+    request: any,
+    response: any,
+    userSearchDto: UserSearchDto
+  ) {
+    const apiId = APIID.USER_LIST;
+    const authToken = request.headers["authorization"];
+    const token = authToken.split(" ")[1];
+    const decoded = jwt_decode(token);
+    const userId = decoded["sub"];
+    const isSuperAdmin = await this.postgresRoleService.isSuperAdmin(userId);
 
-      if (!cohortData) {
-        throw new Error('Invalid cohortId provided');
-      }
+    let { limit, offset, filters, sort, tenantCohortRoleMapping } = userSearchDto;
+    offset = offset || 0;
+    limit = limit || 200;
+    let results = {
+      total_count: 0,
+      getUserDetails: []
+    };
 
-      await this.validateUserandTenantMapping(userId, cohortData.tenantId);
-      const userRoles = await this.getUserRoles(userId, cohortData.tenantId);
+    try {
+      if (isSuperAdmin) {
+        await this.processUserDetails(userSearchDto, results);
+      } else if (
+        tenantCohortRoleMapping.tenantId &&
+        (!tenantCohortRoleMapping.cohortId || tenantCohortRoleMapping.cohortId.length === 0)
+      ) {
+        // Case 1: Only tenantId is provided
+        await this.validateUserandTenantMapping(userId, tenantCohortRoleMapping.tenantId);
+        const userRoles = await this.getUserRoles(userId, tenantCohortRoleMapping.tenantId);
 
-      if (userRoles.code === "tenant_admin") {
-        // Direct access
-      } else if (userRoles.code === "cohort_admin") {
-        await this.validateCohortAdminMapping(userId, tenantCohortRoleMapping.cohortId);
-      } else {
-        throw new Error('User does not have sufficient permissions for this cohort');
-      }
-
-      await this.processUserDetails(userSearchDto, results);
-    } else if (
-      tenantCohortRoleMapping.tenantId &&
-      tenantCohortRoleMapping.cohortId &&
-      tenantCohortRoleMapping.cohortId.length > 0
-    ) {
-      // Case 3: Both tenantId and cohortId are provided
-      await this.validateCohortTenantMapping(
-        tenantCohortRoleMapping.cohortId[0],
-        tenantCohortRoleMapping.tenantId
-      );
-
-      const userRoles = await this.getUserRoles(userId, tenantCohortRoleMapping.tenantId);
-
-      if (userRoles.code === "tenant_admin") {
-        // Direct access
-      } else if (userRoles.code === "cohort_admin") {
-        await this.validateCohortAdminMapping(userId, tenantCohortRoleMapping.cohortId);
-      } else {
-        throw new Error('User does not have sufficient permissions for this mapping');
-      }
-
-      await this.processUserDetails(userSearchDto, results);
-    } else {
-      // Case 4: No tenantId or cohortId provided
-      let userTenantMapping = await this.userTenantMappingRepository.find({ where: { userId } });
-
-      for (const userTenant of userTenantMapping) {
-        const tenantId = userTenant.tenantId;
-        const userRoles = await this.getUserRoles(userId, tenantId);
-
-        if (userRoles.code === "cohort_admin") {
-          tenantCohortRoleMapping.cohortId = await this.getCohortIdsForTenant(userId, tenantId);
-        } else if (userRoles.code === "tenant_admin") {
+        if (userRoles.code === "tenant_admin") {
           tenantCohortRoleMapping.cohortId = [];
-          tenantCohortRoleMapping.tenantId= tenantId;
+        } else if (userRoles.code === "cohort_admin") {
+          tenantCohortRoleMapping.cohortId = await this.getCohortIdsForTenant(
+            userId,
+            tenantCohortRoleMapping.tenantId
+          );
+        } else {
+          throw new Error('User does not have sufficient permissions for this tenant');
         }
 
         await this.processUserDetails(userSearchDto, results);
+      } else if (
+        (!tenantCohortRoleMapping.tenantId || tenantCohortRoleMapping.tenantId === "") &&
+        tenantCohortRoleMapping.cohortId &&
+        tenantCohortRoleMapping.cohortId.length > 0
+      ) {
+        // Case 2: Only cohortId is provided
+        let cohortData = await this.cohortRepository.findOne({
+          where: { cohortId: tenantCohortRoleMapping.cohortId[0] },
+          select: ["tenantId"],
+        });
+
+        if (!cohortData) {
+          throw new Error('Invalid cohortId provided');
+        }
+
+        await this.validateUserandTenantMapping(userId, cohortData.tenantId);
+        const userRoles = await this.getUserRoles(userId, cohortData.tenantId);
+
+        if (userRoles.code === "tenant_admin") {
+          // Direct access
+        } else if (userRoles.code === "cohort_admin") {
+          await this.validateCohortAdminMapping(userId, tenantCohortRoleMapping.cohortId);
+        } else {
+          throw new Error('User does not have sufficient permissions for this cohort');
+        }
+
+        await this.processUserDetails(userSearchDto, results);
+      } else if (
+        tenantCohortRoleMapping.tenantId &&
+        tenantCohortRoleMapping.cohortId &&
+        tenantCohortRoleMapping.cohortId.length > 0
+      ) {
+        // Case 3: Both tenantId and cohortId are provided
+        await this.validateCohortTenantMapping(
+          tenantCohortRoleMapping.cohortId[0],
+          tenantCohortRoleMapping.tenantId
+        );
+
+        const userRoles = await this.getUserRoles(userId, tenantCohortRoleMapping.tenantId);
+
+        if (userRoles.code === "tenant_admin") {
+          // Direct access
+        } else if (userRoles.code === "cohort_admin") {
+          await this.validateCohortAdminMapping(userId, tenantCohortRoleMapping.cohortId);
+        } else {
+          throw new Error('User does not have sufficient permissions for this mapping');
+        }
+
+        await this.processUserDetails(userSearchDto, results);
+      } else {
+        // Case 4: No tenantId or cohortId provided
+        let userTenantMapping = await this.userTenantMappingRepository.find({ where: { userId } });
+
+        for (const userTenant of userTenantMapping) {
+          const tenantId = userTenant.tenantId;
+          const userRoles = await this.getUserRoles(userId, tenantId);
+
+          if (userRoles.code === "cohort_admin") {
+            tenantCohortRoleMapping.cohortId = await this.getCohortIdsForTenant(userId, tenantId);
+          } else if (userRoles.code === "tenant_admin") {
+            tenantCohortRoleMapping.cohortId = [];
+            tenantCohortRoleMapping.tenantId = tenantId;
+          }
+
+          await this.processUserDetails(userSearchDto, results);
+        }
       }
+      results.total_count = results.getUserDetails.length;
+      results.getUserDetails = results.getUserDetails.slice(offset, offset + limit);
+
+
+      return await APIResponse.success(response, apiId, results, HttpStatus.OK, 'User List fetched.');
+    } catch (e) {
+      return APIResponse.error(
+        response,
+        apiId,
+        "Internal Server Error",
+        e.message || "Unexpected Error",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
-    results.total_count = results.getUserDetails.length;
-    results.getUserDetails = results.getUserDetails.slice(offset, offset + limit);
-
-
-    return await APIResponse.success(response, apiId, results, HttpStatus.OK, 'User List fetched.');
-  } catch (e) {
-    return APIResponse.error(
-      response,
-      apiId,
-      "Internal Server Error",
-      e.message || "Unexpected Error",
-      HttpStatus.INTERNAL_SERVER_ERROR
-    );
   }
-}
 
 
   async findAllUserDetails(userSearchDto) {
 
-    let { limit, offset, filters, exclude, sort,tenantCohortRoleMapping } = userSearchDto;
+    let { limit, offset, filters, exclude, sort, tenantCohortRoleMapping } = userSearchDto;
     let excludeCohortIdes;
     let excludeUserIdes;
     const { tenantId, cohortId } = tenantCohortRoleMapping || {};
@@ -547,7 +547,7 @@ async searchUser(
         // userData && userData?.tenantId ? this.findUserRoles(userData?.userId, userData?.tenantId) : Promise.resolve(null)
       ]);
 
-      let roleInUpper =null;
+      let roleInUpper = null;
       // if (userRole) {
       //   roleInUpper = userRole ? userRole.title.toUpperCase() : null;
       //   userDetails['role'] = userRole.title;
@@ -560,7 +560,7 @@ async searchUser(
         return APIResponse.error(response, apiId, "Not Found", `User Not Found`, HttpStatus.NOT_FOUND);
       }
       if (!userData.fieldValue) {
-        return await APIResponse.success(response, apiId, { userData: {userDetails} },
+        return await APIResponse.success(response, apiId, { userData: { userDetails } },
           HttpStatus.OK, 'User details Fetched Successfully.')
       }
 
@@ -994,8 +994,8 @@ async searchUser(
       user.userId = userCreateDto?.userId,
       user.state = userCreateDto?.state,
       user.district = userCreateDto?.district
-      // user.address = userCreateDto?.address,
-      // user.pincode = userCreateDto?.pincode
+    // user.address = userCreateDto?.address,
+    // user.pincode = userCreateDto?.pincode
 
     if (userCreateDto?.dob) {
       user.dob = new Date(userCreateDto.dob);
@@ -1038,16 +1038,16 @@ async searchUser(
           userId: userId,
           tenantId: tenantId,
           roleId: roleId,
-          createdBy: request['user']?.userId || userId,
-          updatedBy: request['user']?.userId || userId,
+          createdBy: userId || request['user']?.userId,
+          updatedBy: userId || request['user']?.userId,
         })
       }
 
       const data = await this.userTenantMappingRepository.save({
         userId: userId,
         tenantId: tenantId,
-        createdBy: request['user']?.userId || userId,
-        updatedBy: request['user']?.userId || userId
+        createdBy: userId || request['user']?.userId,
+        updatedBy: userId || request['user']?.userId
       })
 
     } catch (error) {
