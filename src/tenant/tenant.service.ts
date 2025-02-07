@@ -295,6 +295,21 @@ export class TenantService {
                     HttpStatus.CONFLICT
                 );
             }
+            let checkExistTenants = await this.tenantRepository.find({
+                where: {
+                    "name": tenantUpdateDto?.name
+                }
+            }
+            )
+            if (checkExistTenants.length > 0) {
+                return APIResponse.error(
+                    response,
+                    apiId,
+                    API_RESPONSES.CONFLICT,
+                    API_RESPONSES.TENANT_NAME_EXISTS(tenantUpdateDto?.name),
+                    HttpStatus.CONFLICT
+                );
+            }
 
             let result = await this.tenantRepository.update(
                 tenantId,
@@ -357,11 +372,11 @@ export class TenantService {
                     const createPrivilegeRoleDto = new CreatePrivilegeRoleDto(privilegeMappingRequest)    
                     // Call to map privileges to the role
                     await this.rolePrivilegeService.createPrivilegeRole(request as any, createPrivilegeRoleDto, response as any);
-                    return rolesResult;
                 } else {
                     console.warn(`No privileges found for role "${roleCode}".`);
                 }
             }
+            return rolesResult;
         } catch (error) {
             console.error("Error while creating roles and assigning privileges:", error.message);
             throw error;
