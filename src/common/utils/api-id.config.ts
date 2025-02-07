@@ -50,5 +50,6 @@ export const APIID = {
     TENANT_LIST: "api.tenant.list",
     ACADEMICYEAR_CREATE: 'api.academicyear.create',
     ACADEMICYEAR_LIST: 'api.academicyear.list',
-    ACADEMICYEAR_GET: 'api.academicyear.get'
+    ACADEMICYEAR_GET: 'api.academicyear.get',
+    SEND_INVITATION:'api.invitation.send'
 }

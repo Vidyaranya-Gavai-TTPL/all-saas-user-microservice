@@ -13,6 +13,7 @@ import { PostgresFieldsService } from "./fields-adapter";
 import { Cohort } from "src/cohort/entities/cohort.entity";
 import { UserTenantMapping } from "src/userTenantMapping/entities/user-tenant-mapping.entity";
 import { Tenants } from "src/userTenantMapping/entities/tenant.entity";
+import { Invitations } from "src/invitation/entities/invitation.entity";
 import { UserRoleMapping } from "src/rbac/assign-role/entities/assign-role.entity";
 import { Role } from "src/rbac/role/entities/role.entity";
 import { PostgresRoleService } from "./rbac/role-adapter";
@@ -35,6 +36,7 @@ import { JwtService } from "@nestjs/jwt";
             Cohort,
             UserTenantMapping,
             Tenants,
+            Invitations,
             UserRoleMapping,
             Role,
             RolePrivilegeMapping,
