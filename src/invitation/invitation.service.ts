@@ -1,22 +1,22 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import jwt_decode from "jwt-decode";
 import APIResponse from "src/common/responses/response";
-import { PostgresAssignPrivilegeService } from "src/adapters/postgres/rbac/privilegerole.adapter";
-import { PostgresRoleService } from "src/adapters/postgres/rbac/role-adapter";
-import { PostgresUserService } from "src/adapters/postgres/user-adapter";
-import { Cohort } from "src/cohort/entities/cohort.entity";
-import { UserRoleMapping } from "src/rbac/assign-role/entities/assign-role.entity";
-import { User } from "src/user/entities/user-entity";
-import { Tenants } from "src/userTenantMapping/entities/tenant.entity";
-import { UserTenantMapping } from "src/userTenantMapping/entities/user-tenant-mapping.entity";
-import { Repository } from "typeorm";
-import { API_RESPONSES } from "@utils/response.messages";
-import { Invitations } from "./entities/invitation.entity";
-import { CohortMembers } from "src/cohortMembers/entities/cohort-member.entity";
-import { APIID } from "@utils/api-id.config";
-import { UpdateInvitationDto } from "./dto/update-invitation.dto";
-import { Role } from "src/rbac/role/entities/role.entity";
+import { PostgresAssignPrivilegeService } from 'src/adapters/postgres/rbac/privilegerole.adapter';
+import { PostgresRoleService } from 'src/adapters/postgres/rbac/role-adapter';
+import { PostgresUserService } from 'src/adapters/postgres/user-adapter';
+import { Cohort } from 'src/cohort/entities/cohort.entity';
+import { UserRoleMapping } from 'src/rbac/assign-role/entities/assign-role.entity';
+import { User } from 'src/user/entities/user-entity';
+import { Tenants } from 'src/userTenantMapping/entities/tenant.entity';
+import { UserTenantMapping } from 'src/userTenantMapping/entities/user-tenant-mapping.entity';
+import { Repository } from 'typeorm';
+import { API_RESPONSES } from '@utils/response.messages';
+import { Invitations } from './entities/invitation.entity';
+import { CohortMembers } from 'src/cohortMembers/entities/cohort-member.entity';
+import { APIID } from '@utils/api-id.config';
+import { UpdateInvitationDto } from './dto/update-invitation.dto';
+import { Role } from 'src/rbac/role/entities/role.entity';
 @Injectable()
 export class InvitationService {
   constructor(
@@ -37,10 +37,10 @@ export class InvitationService {
     private readonly userService: PostgresUserService,
     private roleService: PostgresRoleService,
     private rolePrivilegeService: PostgresAssignPrivilegeService,
-    private readonly postgresUserService: PostgresUserService
-  ) {}
+    private postgresUserService: PostgresUserService
+  ) { }
   public async sendInvite(request, createInvitationDto, response) {
-    const apiId = APIID.SEND_INVITATION;
+    const apiId = APIID.SEND_INVITATION
     try {
       const decoded = jwt_decode(request.headers["authorization"]);
       createInvitationDto.invitedBy = decoded["email"];
@@ -68,9 +68,9 @@ export class InvitationService {
           tenantId: createInvitationDto.tenantId,
           cohortId: createInvitationDto.cohortId,
           invitedTo: createInvitationDto.invitedTo,
-          invitationStatus: "Pending",
+          invitationStatus: "Pending"
         },
-      });
+      })
       if (checkInvitaionExist) {
         return APIResponse.error(
           response,
@@ -100,10 +100,7 @@ export class InvitationService {
       }
 
       // Fetch user roles
-      const userRoles = await this.userService.getUserRoles(
-        checkUser.userId,
-        createInvitationDto.tenantId
-      );
+      const userRoles = await this.userService.getUserRoles(checkUser.userId, createInvitationDto.tenantId);
 
       if (!userRoles) {
         const result = await this.invitationsRepository.save(
@@ -124,7 +121,7 @@ export class InvitationService {
           response,
           apiId,
           API_RESPONSES.CONFLICT,
-          API_RESPONSES.INVITEDUSER_CONFLICT("tenant admin"),
+          API_RESPONSES.INVITEDUSER_CONFLICT('tenant admin'),
           HttpStatus.CONFLICT
         );
       }
@@ -143,7 +140,7 @@ export class InvitationService {
             response,
             apiId,
             API_RESPONSES.CONFLICT,
-            API_RESPONSES.INVITEDUSER_CONFLICT("cohort admin"),
+            API_RESPONSES.INVITEDUSER_CONFLICT('cohort admin'),
             HttpStatus.CONFLICT
           );
         }

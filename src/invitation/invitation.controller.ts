@@ -1,49 +1,30 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Put,
-  Query,
-  Req,
-  Res,
-  UseGuards,
-  UsePipes,
-  ValidationPipe,
-} from "@nestjs/common";
-import { InvitationService } from "./invitation.service";
-import {
-  ApiBadRequestResponse,
-  ApiBasicAuth,
-  ApiBody,
-  ApiCreatedResponse,
-  ApiForbiddenResponse,
-} from "@nestjs/swagger";
-import { CreateInvitationDto } from "./dto/create-invitation.dto";
-import { Request, Response } from "express";
-import { JwtAuthGuard } from "src/common/guards/keycloak.guard";
-import { UpdateInvitationDto } from "./dto/update-invitation.dto";
+import { Body, Controller, Get, Post, Put, Query, Req, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { InvitationService } from './invitation.service';
+import { ApiBadRequestResponse, ApiBasicAuth, ApiBody, ApiCreatedResponse, ApiForbiddenResponse } from '@nestjs/swagger';
+import { CreateInvitationDto } from './dto/create-invitation.dto';
+import { Request, Response } from 'express';
+import { JwtAuthGuard } from 'src/common/guards/keycloak.guard';
+import { UpdateInvitationDto } from './dto/update-invitation.dto';
 
-@Controller("invitation")
+@Controller('invitation')
 @UseGuards(JwtAuthGuard)
 export class InvitationController {
-  constructor(private invitationService: InvitationService) {}
+  constructor(
+    private invitationService: InvitationService,
+  ) { }
   @Post("/sendinvite")
   @ApiBody({ type: CreateInvitationDto })
   @UsePipes(new ValidationPipe({ transform: true }))
   @ApiCreatedResponse({ description: "Invite Send Successfully" })
   @ApiForbiddenResponse({ description: "Forbidden" })
   @ApiBadRequestResponse({ description: "Bad request." })
+
   public async sendInvite(
     @Req() request: Request,
     @Res() response: Response,
-    @Body() createInvitationDto: CreateInvitationDto
+    @Body() createInvitationDto: CreateInvitationDto,
   ) {
-    return await this.invitationService.sendInvite(
-      request,
-      createInvitationDto,
-      response
-    );
+    return await this.invitationService.sendInvite(request, createInvitationDto, response);
   }
 
   @Get("/getall")
@@ -75,4 +56,5 @@ export class InvitationController {
       updateInvitationDto
     );
   }
+
 }
