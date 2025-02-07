@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Query, Req, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query, Req, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { InvitationService } from './invitation.service';
 import { ApiBadRequestResponse, ApiBasicAuth, ApiBody, ApiCreatedResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
@@ -37,7 +37,7 @@ export class InvitationController {
     return await this.invitationService.getInvitations(request, response);
   }
 
-  @Put("/update")
+  @Patch("/update")
   @ApiBasicAuth("access-token")
   @ApiBody({ type: UpdateInvitationDto })
   @ApiForbiddenResponse({ description: "Only invitees can update status" })
