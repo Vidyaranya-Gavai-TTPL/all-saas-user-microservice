@@ -285,7 +285,7 @@ export class InvitationService {
       }
 
       // If accepted, then map user as cohort admin
-      if (request.body.invitationStatus === "Accepted") {
+      if (updateInvitationDto.invitationStatus === "Accepted") {
         // Get role for roleId
         const role = await this.roleRepository.findOne({
           where: { tenantId: invitation.tenantId, code: "cohort_admin" },
