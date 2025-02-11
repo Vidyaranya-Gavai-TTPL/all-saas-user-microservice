@@ -285,18 +285,21 @@ export class InvitationService {
       }
 
       // If accepted, then map user as cohort admin
-      if (invitation.invitationStatus === "Accepted") {
+      if (request.body.invitationStatus === "Accepted") {
         // Get role for roleId
         const role = await this.roleRepository.findOne({
           where: { tenantId: invitation.tenantId, code: "cohort_admin" },
         });
 
-        // Check if user is already mapped as cohort admin or not
+        // Check if user is already mapped as cohort admin for given cohort or not
         const userRoleMap = await this.userRoleMappingRepository.findOne({
           where: { userId, roleId: role.roleId },
         });
+        const cohortMember = await this.cohortMembersRepository.findOne({
+          where: { cohortId: invitation.cohortId, userId },
+        });
 
-        if (userRoleMap) {
+        if (userRoleMap && cohortMember) {
           const error = API_RESPONSES.INVITEE_ALREADY_MAPPED;
           return APIResponse.error(
             response,
