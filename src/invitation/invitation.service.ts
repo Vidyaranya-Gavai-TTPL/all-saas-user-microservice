@@ -10,7 +10,7 @@ import { UserRoleMapping } from 'src/rbac/assign-role/entities/assign-role.entit
 import { User } from 'src/user/entities/user-entity';
 import { Tenants } from 'src/userTenantMapping/entities/tenant.entity';
 import { UserTenantMapping } from 'src/userTenantMapping/entities/user-tenant-mapping.entity';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { API_RESPONSES } from '@utils/response.messages';
 import { Invitations } from './entities/invitation.entity';
 import { CohortMembers } from 'src/cohortMembers/entities/cohort-member.entity';
@@ -181,7 +181,7 @@ export class InvitationService {
 
       let sentInvitations = [];
       sentInvitations = await this.invitationsRepository.find({
-        where: { invitedBy: email },
+        where: { invitedBy: email, invitationStatus: Not("Revoked") },
       });
 
       // Add cohort name response
@@ -272,62 +272,79 @@ export class InvitationService {
         );
       }
 
-      // Only invitee can accept or reject (update status)
-      if (invitation.invitedTo !== email) {
-        const error = API_RESPONSES.INVITEE_ONLY;
-        return APIResponse.error(
-          response,
-          apiId,
-          API_RESPONSES.INVITEE_ONLY,
-          error,
-          HttpStatus.UNAUTHORIZED
-        );
-      }
-
-      // If accepted, then map user as cohort admin
-      if (updateInvitationDto.invitationStatus === "Accepted") {
-        // Get role for roleId
-        const role = await this.roleRepository.findOne({
-          where: { tenantId: invitation.tenantId, code: "cohort_admin" },
-        });
-
-        // Check if user is already mapped as cohort admin for given cohort or not
-        const userRoleMap = await this.userRoleMappingRepository.findOne({
-          where: { userId, roleId: role.roleId },
-        });
-        const cohortMember = await this.cohortMembersRepository.findOne({
-          where: { cohortId: invitation.cohortId, userId },
-        });
-
-        if (userRoleMap && cohortMember) {
-          const error = API_RESPONSES.INVITEE_ALREADY_MAPPED;
+      if (updateInvitationDto.invitationStatus !== 'Revoked') {
+        // Only invitee can accept or reject (update status)
+        if (invitation.invitedTo !== email) {
+          const error = API_RESPONSES.INVITEE_ONLY;
           return APIResponse.error(
             response,
             apiId,
-            API_RESPONSES.INVITEE_ALREADY_MAPPED,
+            API_RESPONSES.INVITEE_ONLY,
             error,
-            HttpStatus.CONFLICT
+            HttpStatus.UNAUTHORIZED
           );
         }
 
-        // Assign user to tenant with appropriate role
-        const tenantsData = {
-          tenantRoleMapping: {
-            tenantId: invitation.tenantId,
-            roleId: role.roleId,
-          },
-          userId: userId,
-        };
+        // If accepted, then map user as cohort admin
+        if (invitation.invitationStatus === "Accepted") {
+          // Get role for roleId
+          const role = await this.roleRepository.findOne({
+            where: { tenantId: invitation.tenantId, code: "cohort_admin" },
+          });
 
-        await this.postgresUserService.assignUserToTenant(tenantsData, null);
+          // Check if user is already mapped as cohort admin or not
+          const userRoleMap = await this.userRoleMappingRepository.findOne({
+            where: { userId, roleId: role.roleId },
+          });
 
-        // Add user as cohort member
-        const cohortData = {
-          userId: userId,
-          cohortId: invitation.cohortId,
-        };
+          if (userRoleMap) {
+            const error = API_RESPONSES.INVITEE_ALREADY_MAPPED;
+            return APIResponse.error(
+              response,
+              apiId,
+              API_RESPONSES.INVITEE_ALREADY_MAPPED,
+              error,
+              HttpStatus.CONFLICT
+            );
+          }
 
-        await this.postgresUserService.addCohortMember(cohortData);
+          // Assign user to tenant with appropriate role
+          const tenantsData = {
+            tenantRoleMapping: {
+              tenantId: invitation.tenantId,
+              roleId: role.roleId,
+            },
+            userId: userId,
+          };
+
+          await this.postgresUserService.assignUserToTenant(tenantsData, null);
+
+          // Add user as cohort member
+          const cohortData = {
+            userId: userId,
+            cohortId: invitation.cohortId,
+          };
+
+          await this.postgresUserService.addCohortMember(cohortData);
+        }
+      } else if (invitation.invitedBy !== email) {
+        const errorMessage = API_RESPONSES.UNAUTHORIZED_TO_REVOKE
+        return APIResponse.error(
+          response,
+          apiId,
+          API_RESPONSES.UNAUTHORIZED_TO_REVOKE,
+          errorMessage,
+          HttpStatus.UNAUTHORIZED
+        )
+      } else if (invitation.invitationStatus !== "Pending") {
+        const errorMessage = API_RESPONSES.REVOKE_ONLY_PENDING
+        return APIResponse.error(
+          response,
+          apiId,
+          API_RESPONSES.REVOKE_ONLY_PENDING,
+          errorMessage,
+          HttpStatus.UNAUTHORIZED
+        )
       }
 
       // update invitation status
