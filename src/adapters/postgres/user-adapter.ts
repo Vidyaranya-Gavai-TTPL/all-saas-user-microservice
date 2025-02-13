@@ -1034,21 +1034,37 @@ export class PostgresUserService implements IServicelocator {
       const roleId = tenantsData?.tenantRoleMapping?.roleId;
 
       if (roleId) {
-        const data = await this.userRoleMappingRepository.save({
+        const data = {
           userId: userId,
           tenantId: tenantId,
           roleId: roleId,
           createdBy: userId || request['user']?.userId,
           updatedBy: userId || request['user']?.userId,
-        })
+        }
+
+        await this.userRoleMappingRepository
+          .createQueryBuilder()
+          .insert()
+          .into(UserRoleMapping)
+          .values(data)
+          .orIgnore()
+          .execute();
       }
 
-      const data = await this.userTenantMappingRepository.save({
+      const data = {
         userId: userId,
         tenantId: tenantId,
         createdBy: userId || request['user']?.userId,
         updatedBy: userId || request['user']?.userId
-      })
+      }
+
+      await this.userTenantMappingRepository
+        .createQueryBuilder()
+        .insert()
+        .into(UserTenantMapping)
+        .values(data)
+        .orIgnore()
+        .execute();
 
     } catch (error) {
       throw new Error(error)
