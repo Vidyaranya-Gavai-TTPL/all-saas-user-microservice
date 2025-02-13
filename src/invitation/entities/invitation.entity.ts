@@ -26,10 +26,10 @@ export class Invitations {
 
   @Column({
     type: "enum",
-    enum: ["Pending", "Accepted", "Rejected"],
+    enum: ["Pending", "Accepted", "Rejected", "Revoked"],
     default: "Pending",
   })
-  invitationStatus: "Pending" | "Accepted" | "Rejected";
+  invitationStatus: "Pending" | "Accepted" | "Rejected" | "Revoked";
 
   @CreateDateColumn({
     type: "timestamp with time zone",
