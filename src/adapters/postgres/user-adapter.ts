@@ -348,6 +348,7 @@ export class PostgresUserService implements IServicelocator {
           const userRoles = await this.getUserRoles(userId, tenantId);
 
           if (userRoles.code === "cohort_admin") {
+            tenantCohortRoleMapping.tenantId = "";
             tenantCohortRoleMapping.cohortId = await this.getCohortIdsForTenant(userId, tenantId);
           } else if (userRoles.code === "tenant_admin") {
             tenantCohortRoleMapping.cohortId = [];
